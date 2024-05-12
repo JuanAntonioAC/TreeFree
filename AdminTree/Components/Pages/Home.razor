@@ -1,0 +1,146 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using System.Data
+@using System.IO
+@using NPOI.XSSF.UserModel
+@using NPOI.SS.UserModel
+@using Entities
+@using Business
+@inject IJSRuntime _js
+
+
+<PageTitle>Home</PageTitle>
+
+<label>Archivo excel</label>
+<InputFile OnChange="@OnInputFileChange" class="btn btn-primary" />
+
+@code {
+
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        DataTable dt = new DataTable();
+        try
+        {
+            var fileStream = e.File.OpenReadStream(1000000);
+            var ms = new MemoryStream();
+            await fileStream.CopyToAsync(ms);
+            fileStream.Close();
+            ms.Position = 0;
+
+            ISheet sheet;
+            var xsswb = new XSSFWorkbook(ms);
+            List<dbColonies> colonies = new List<dbColonies>();
+            List<dbSpecies> species = new List<dbSpecies>();
+            List<dbTreeMap> trees = new List<dbTreeMap>();
+
+            for (int id = 0; id < xsswb.NumberOfSheets; id++)
+            {
+                sheet = xsswb.GetSheetAt(id);
+                IRow hr = sheet.GetRow(0);
+                var rl = new List<string>();
+
+                int limit = 0;
+                int cc = 0;
+
+                if (sheet.SheetName == "COLONIA")
+                {
+                    limit = 35;
+                    cc = hr.LastCellNum - 1;
+                }
+                else if (sheet.SheetName == "LISTA DE ESPECIE")
+                {
+
+                    limit = 89;
+                    cc = hr.LastCellNum;
+                }
+
+                else if (sheet.SheetName == "BASE DE DATOS ORIGINAL")
+                {
+
+                    limit = 5345;
+                    cc = hr.LastCellNum;
+                }
+                for (var j = (sheet.FirstRowNum + 1); j <= limit; j++)
+                {
+
+                    var r = sheet.GetRow(j);
+                    if (r != null && r.FirstCellNum >= 0)
+                    {
+                        for (var i = r.FirstCellNum; i < cc; i++)
+                        {
+                            if (r.GetCell(i) != null)
+                            {
+                                rl.Add(r.GetCell(i).ToString());
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        if (rl.Count > 0)
+                        {
+                            if (limit == 35)
+                            {
+                                dbColonies colony = new dbColonies { Name = rl[1].ToString(), SurfaceM = decimal.Parse(rl[2].ToString()), Na = int.Parse(rl[4].ToString()), Frequency = decimal.Parse(rl[5].ToString()) };
+                                colonies.Add(colony);
+                            }
+                            else if (limit == 89)
+                            {
+                                dbSpecies specie = new dbSpecies { CommonName = rl[1].ToString(), scientificName = rl[2].ToString() };
+                                species.Add(specie);
+                            }
+                            else if (limit == 5345)
+                            {
+
+                                dbTreeMap tree = new dbTreeMap
+                                    {
+                                        IdColony = int.Parse(rl[0].ToString()),
+                                        Zone = int.Parse(rl[2].ToString()),
+                                        NoTree = int.Parse(rl[3].ToString()),
+                                        IdSpecie = int.Parse(rl[4].ToString()),
+                                        Xcoordinate = int.Parse(rl[7].ToString()),
+                                        Ycoordinate = int.Parse(rl[8].ToString()),
+                                        Stage = int.Parse(rl[9].ToString()),
+                                        H = decimal.Parse(rl[10].ToString()),
+                                        DB = decimal.Parse(rl[11].ToString()),
+                                        DCNS = decimal.Parse(rl[12].ToString()),
+                                        DCEO = decimal.Parse(rl[13].ToString()),
+                                        EFT = int.Parse(rl[14].ToString()),
+                                        EST = int.Parse(rl[15].ToString()),
+                                        EFC = int.Parse(rl[16].ToString()),
+                                        ESC = int.Parse(rl[17].ToString()),
+                                        Sa = int.Parse(rl[18].ToString()),
+                                        Condition = int.Parse(rl[19].ToString()),
+                                        Risk = int.Parse(rl[20].ToString()),
+                                        maintenance = int.Parse(rl[22].ToString()),
+                                        Observation = rl[23].ToString()
+
+                                    };
+                                await _js.InvokeVoidAsync("console.log", j.ToString());
+                                trees.Add(tree);
+
+                            }
+                        }
+
+                        rl.Clear();
+                    }
+                }
+            }
+
+                //ColoniesBussines.AddColonies(colonies);
+               // SpeciesBusiness.AddSpecies(species);
+                TreeMapBusiness.AddTree(trees);
+           
+
+        }
+        catch (Exception ex)
+        {
+            
+        
+        }
+
+
+    }
+
+}
